@@ -1,31 +1,23 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from uuid import uuid4
-
+from app.models.workflow import WorkflowSpec, WorkflowRun
+from app.orchestration.engine import WorkflowManager
 
 router = APIRouter()
+orchestrator = WorkflowManager()
 
-# In-memory store for now
-WORKFLOWS = {}
-
-
-@router.post("/")
-async def submit_workflow(workflow: dict):
-    """
-    Accept a workflow definition and return a workflow_id.
-    Right now, we just save the raw dict in memory.
-    """
+@router.post("/", response_model=WorkflowRun)
+async def submit_workflow(spec: WorkflowSpec):
+    """Accept a workflow definition and create a new run record."""
     workflow_id = str(uuid4())
-    WORKFLOWS[workflow_id] = {"status": "PENDING", "definition": workflow}
-    return {"workflow_id": workflow_id, "status": "PENDING"}
+    return await orchestrator.start(workflow_id, spec)
 
 
-@router.get("/{workflow_id}")
-async def get_workflow_status(workflow_id: str):
-    """
-    Retrieve workflow status and details.
-    """
-    workflow = WORKFLOWS.get(workflow_id, None)
-    if not workflow:
-        return {"error": "Workflow not found"}
-    return workflow
-
+@router.get("/{workflow_id}", response_model=WorkflowRun)
+async def get_workflow(workflow_id: str):
+    """Retrieve a workflow run by ID."""
+    run = orchestrator.fetch_execution(workflow_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return JSONResponse(content=run.model_dump())
