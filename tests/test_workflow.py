@@ -15,18 +15,41 @@ async def client():
 @pytest.mark.asyncio
 async def test_submit_and_get_workflow(client):
     # Submit a new workflow
-    workflow_data = {"name": "Test Workflow", "steps": ["step1", "step2"]}
-    response = await client.post("/workflows/", json=workflow_data)
+    payload = {
+        "nodes": [
+            {
+            "id": "fetch",
+            "agent": { "type": "tool.agent", "config": {}, "timeout_sec": 30, "retries": 1 },
+            "params": {
+                "tool": "http.get",
+                "args": { "url": "https://jsonplaceholder.typicode.com/todos/52" }
+            }
+            },
+            {
+            "id": "extract",
+            "agent": { "type": "tool.agent", "config": {}, "timeout_sec": 30, "retries": 2 },
+            "params": {
+                "tool": "json.pick",
+                "args": { "data": {"$from": "fetch", "$field": "json"}, "paths": ["title", "id"] },
+                "input_from": "fetch"
+            }
+            }
+        ],
+        "edges": [
+            { "source": "fetch", "target": "extract" }
+        ]
+    }
+    response = await client.post("/workflows/", json=payload)
     assert response.status_code == 200
     result = response.json()
-    assert "workflow_id" in result
+    assert "run_id" in result
     assert result["status"] == "PENDING"
-
-    workflow_id = result["workflow_id"]
-
+    
+    workflow_id = result["run_id"]
+    
     # Retrieve the workflow by ID
     response = await client.get(f"/workflows/{workflow_id}")
     assert response.status_code == 200
     result = response.json()
     assert result["status"] == "PENDING"
-    assert result["definition"] == workflow_data
+    assert result["nodes"]["fetch"]["status"] == "PENDING"
