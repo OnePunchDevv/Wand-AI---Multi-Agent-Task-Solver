@@ -13,6 +13,31 @@ A minimal FastAPI service that lets you define and track simple workflows, with 
 
 ---
 
+## Design Decisions
+
+- **FastAPI as the framework**  
+  Chosen for its async support and type safety with Pydantic.
+
+- **Router-based organization**  
+  Split endpoints into `health` and `workflows` routers for clarity and scalability.
+
+- **Pydantic models for contracts**  
+  Used `WorkflowSpec` and `WorkflowRun` to enforce schema validation and keep request/response strict.
+
+- **In-memory state store**  
+  A simple Python dict holds workflow runs. This keeps the prototype lightweight while leaving room for later DB integration.
+
+- **Status tracking**  
+  Each workflow has an overall `status` (`PENDING`) and per-task status mapping, providing a foundation for future execution logic.
+
+- **Minimal dependencies**  
+  Only FastAPI, Uvicorn, HTTPX, and Pytest are required — avoiding complexity and making setup trivial.
+
+- **Tests-first approach**  
+  Both health and workflows have pytest-based integration tests to validate endpoints early.
+
+---
+
 ## Endpoints
 
 ### Health
@@ -70,6 +95,29 @@ tests/
   ├── test_health.py
   └── test_workflows.py
 ```
+
+---
+
+## Trade-offs (due to 24h constraint)
+
+To keep the project lightweight and finish within one day, we made the following trade-offs:
+
+- **In-memory storage only**  
+  No database — all workflows reset on server restart.
+
+- **No logging / monitoring**  
+  Skipped structured logging and metrics to reduce boilerplate.
+
+- **Minimal API surface**  
+  Only `health`, `submit workflow`, and `get workflow` endpoints implemented.
+
+- **No workflow execution engine**  
+  Workflows are stored and tracked, but not executed.
+
+- **Simplified models**  
+  Basic Pydantic schemas only — no versioning or advanced validation.
+
+These choices allow the project to be **readable, testable, and demo-ready quickly**.
 
 ---
 
